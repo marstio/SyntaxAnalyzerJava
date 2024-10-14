@@ -17,13 +17,17 @@ public class SyntaxAnalyzer {
 
         while (true) {
             StringBuilder codeBlock = new StringBuilder();
-            System.out.println("Enter your block of Java code (type 'done' on a new line to finish and analyze, or 'quit' to exit the program):");
+            System.out.println("\nWelcome to Syntax Analyzer! Input your code below: ");
+            System.out.println("(Type 'done' on a new line to finish and analyze, or 'quit' to exit the program):");
+
 
             while (true) {
                 String input = scanner.nextLine();
                 if (input.trim().equalsIgnoreCase("done")) {
                     System.out.println("\nAnalyzing the code block...\n");
                     analyzeBlock(codeBlock.toString());
+
+                    System.out.println("\n------------- End of analysis -------------\n");
                     break;
                 }
                 if (input.trim().equalsIgnoreCase("quit")) {
@@ -38,18 +42,25 @@ public class SyntaxAnalyzer {
 
     private static void analyzeBlock(String codeBlock) {
         String[] lines = codeBlock.split("\\n");
+
         for (int i = 0; i < lines.length; i++) {
             analyzeLine(lines[i].trim(), i + 1);
         }
     }
 
     private static void analyzeLine(String input, int lineNumber) {
-        if (input.isEmpty()) {
+        if (input.isEmpty() || input.startsWith("//")) {
+            System.out.println(input);
             return;  // Ignore empty lines
         }
 
-        if (!input.endsWith(";")) {
-            System.out.println("Line " + lineNumber + ": Invalid syntax: Missing semicolon.");
+        if (input.contains("Scanner")) {
+            handleScannerDeclaration(input, lineNumber);
+            return;
+        }
+
+        if (!input.endsWith(";") || input.endsWith(";;")) {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Missing semicolon or there's something after the semicolon");
             return;
         }
 
@@ -73,10 +84,10 @@ public class SyntaxAnalyzer {
                 } else if (variables.containsKey(firstWord)) {
                     handleVariableUsage(tokenizer, firstWord, lineNumber);
                 } else {
-                    System.out.println("Line " + lineNumber + ": Invalid syntax or undeclared variable: " + firstWord);
+                    System.out.println("Line " + lineNumber + ": Invalid Syntax: undeclared variable: " + firstWord);
                 }
             } else {
-                System.out.println("Line " + lineNumber + ": Invalid syntax: Line does not start with a valid token");
+                System.out.println("Line " + lineNumber + ": Invalid Syntax: Line does not start with a valid token");
             }
         } catch (IOException e) {
             System.out.println("Line " + lineNumber + ": Error: " + e.getMessage());
@@ -117,19 +128,35 @@ public class SyntaxAnalyzer {
             if (token == '=') {
                 tokenizer.nextToken();
                 Object value = parseValue(tokenizer, varType);
-                if (value != null) {
+                if (value == null) {
+                    System.out.println("Line " + lineNumber + ": Invalid Syntax, mismatched data type for " + varType + " " + varName);
+                    return;
+                }
+
+                // Check for semicolon after the value
+                token = tokenizer.nextToken();
+                if (token == ';') {
+                    // Check for any unexpected tokens after the semicolon
+                    token = tokenizer.nextToken();
+                    if (token != StreamTokenizer.TT_EOL && token != StreamTokenizer.TT_EOF) {
+                        System.out.println("Line " + lineNumber + ": Invalid Syntax: Unexpected token after ';'.");
+                        return;
+                    }
+                    // Now safe to declare syntax valid after confirming no extra tokens
                     variables.put(varName, value);
                     System.out.println("Line " + lineNumber + ": Syntax is Valid, " + varType + " " + varName + " = " + value);
                 } else {
-                    System.out.println("Line " + lineNumber + ": Invalid value for " + varType + " " + varName);
+                    System.out.println("Line " + lineNumber + ": Invalid Syntax : Expected ';' after value.");
                 }
+
             } else {
-                System.out.println("Line " + lineNumber + ": Syntax error: Expected '=' after variable name.");
+                System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected '=' after variable name.");
             }
         } else {
-            System.out.println("Line " + lineNumber + ": Syntax error: Expected variable name.");
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected variable name.");
         }
     }
+
 
     private static Object parseValue(StreamTokenizer tokenizer, String varType) throws IOException {
         switch (varType) {
@@ -177,13 +204,13 @@ public class SyntaxAnalyzer {
     private static void handlePrintStatement(StreamTokenizer tokenizer, int lineNumber) throws IOException {
         int token = tokenizer.nextToken();
         if (token != '.') {
-            System.out.println("Line " + lineNumber + ": Invalid syntax: Expected '.' after 'System'");
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected '.' after 'System'");
             return;
         }
 
         token = tokenizer.nextToken();
         if (token != StreamTokenizer.TT_WORD || (!tokenizer.sval.equals("out") && !tokenizer.sval.equals("err"))) {
-            System.out.println("Line " + lineNumber + ": Invalid syntax: Expected 'out' or 'err' after 'System.'");
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected 'out' or 'err' after 'System.'");
             return;
         }
 
@@ -191,7 +218,7 @@ public class SyntaxAnalyzer {
 
         token = tokenizer.nextToken();
         if (token != '.') {
-            System.out.println("Line " + lineNumber + ": Invalid syntax: Expected '.' after 'System." + outputStream + "'");
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected '.' after 'System." + outputStream + "'");
             return;
         }
 
@@ -206,7 +233,7 @@ public class SyntaxAnalyzer {
 
         token = tokenizer.nextToken();
         if (token != '(') {
-            System.out.println("Line " + lineNumber + ": Invalid syntax: Expected '(' after '" + printType + "'");
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected '(' after '" + printType + "'");
             return;
         }
 
@@ -242,7 +269,7 @@ public class SyntaxAnalyzer {
                     } else if (variables.containsKey(tokenizer.sval)) {
                         expression.append(variables.get(tokenizer.sval));
                     } else {
-                        System.out.println("Line " + lineNumber + ": Invalid variable or undeclared identifier: " + tokenizer.sval);
+                        System.out.println("Line " + lineNumber + ": Invalid Syntax: variable or undeclared identifier: " + tokenizer.sval);
                         return;
                     }
                     break;
@@ -259,6 +286,16 @@ public class SyntaxAnalyzer {
                     }
                     expression.append(')');
                     break;
+                case ';':
+                    // Check for unexpected tokens after the semicolon
+                    token = tokenizer.nextToken();
+                    if (token != StreamTokenizer.TT_EOF) {
+                        System.out.println("Line " + lineNumber + ": Invalid Syntax: Unexpected token after ';'.");
+                        return;
+                    }
+                    // If no unexpected tokens, break out of the loop
+                    return;
+
                 default:
                     expression.append((char) token);
                     break;
@@ -269,6 +306,7 @@ public class SyntaxAnalyzer {
             System.out.println("Line " + lineNumber + ": Invalid print statement: Unmatched parentheses");
         }
     }
+
 
     private static String evaluateExpression(String expression) {
         // Handle string concatenation
@@ -377,45 +415,77 @@ public class SyntaxAnalyzer {
         }.parse();
     }
 
-    private static void handleScannerDeclaration(StreamTokenizer tokenizer, int lineNumber) throws IOException {
-        tokenizer.nextToken(); // variable name
-        String varName = tokenizer.sval;
-        if (!isValidVariableName(varName)) {
-            System.out.println("Line " + lineNumber + ": Invalid Scanner variable name: " + varName);
-            return;
+    private static void handleScannerDeclaration(String line, int lineNumber) {
+        // Check for valid Scanner declaration
+        if (line.trim().equals("Scanner scan = new Scanner(System.in);")) {
+            System.out.println("Line " + lineNumber + ": Syntax is Valid");
         }
-        tokenizer.nextToken(); // =
-        tokenizer.nextToken(); // new
-        tokenizer.nextToken(); // Scanner
-        tokenizer.nextToken(); // (
-        tokenizer.nextToken(); // System
-        tokenizer.nextToken(); // .
-        tokenizer.nextToken(); // in
-        tokenizer.nextToken(); // )
-        tokenizer.nextToken(); // ;
-
-        if (tokenizer.ttype == ';') {
-            System.out.println("Line " + lineNumber + ": Syntax is Valid, Scanner declared - " + varName);
-        } else {
-            System.out.println("Line " + lineNumber + ": Invalid Scanner declaration");
+        // Check for invalid syntax - missing "in"
+        else if (!(line.contains("(System.in)"))) {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: needs (System.in)");
+        }
+        // Check for invalid scanner declaration - variable name issue
+        else if (line.startsWith("Scan ") || line.startsWith("scan ")) {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Scanner not properly declared");
+        }
+        // Check for extra characters after the semicolon
+        else if (!(line.endsWith(";"))) {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: there's something after the semicolon");
+        }
+        // Check for missing "new" in scanner declaration
+        else if (line.contains("Scanner") && !line.contains("new Scanner")) {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: need to declare new scanner object");
+        }
+        // Handle any other cases if needed
+        else {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Unrecognized Scanner declaration");
         }
     }
+
 
     private static void handleVariableUsage(StreamTokenizer tokenizer, String varName, int lineNumber) throws IOException {
         int nextToken = tokenizer.nextToken();
         if (nextToken == '=') {
             tokenizer.nextToken();
             Object value = parseValue(tokenizer, getType(variables.get(varName)));
-            if (value != null) {
+            if (value == null) {
+                System.out.println("Line " + lineNumber + ": Invalid value assignment for " + varName);
+                return;
+            }
+
+            // Check for semicolon after the value
+            nextToken = tokenizer.nextToken();
+            if (nextToken == ';') {
+                // Check for any unexpected tokens after the semicolon
+                nextToken = tokenizer.nextToken();
+                if (nextToken != StreamTokenizer.TT_EOL && nextToken != StreamTokenizer.TT_EOF) {
+                    System.out.println("Line " + lineNumber + ": Invalid Syntax: Unexpected token after ';'.");
+                    return;
+                }
+                // Now safe to declare syntax valid after confirming no extra tokens
                 variables.put(varName, value);
                 System.out.println("Line " + lineNumber + ": Syntax is Valid, " + varName + " = " + value);
             } else {
-                System.out.println("Line " + lineNumber + ": Invalid value assignment for " + varName);
+                System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected ';' after value.");
             }
+
         } else {
             System.out.println("Line " + lineNumber + ": Syntax is Valid, Variable used: " + varName + " = " + variables.get(varName));
+
+            // Check for semicolon after the usage
+            nextToken = tokenizer.nextToken();
+            if (nextToken == ';') {
+                // Check for any unexpected tokens after the semicolon
+                nextToken = tokenizer.nextToken();
+                if (nextToken != StreamTokenizer.TT_EOL && nextToken != StreamTokenizer.TT_EOF) {
+                    System.out.println("Line " + lineNumber + ": Invalid Syntax: Unexpected token after ';'.");
+                }
+            } else {
+                System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected ';' after variable usage.");
+            }
         }
     }
+
 
     private static String getType(Object value) {
         if (value instanceof Byte) return "byte";

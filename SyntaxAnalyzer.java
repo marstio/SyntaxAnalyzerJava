@@ -17,17 +17,13 @@ public class SyntaxAnalyzer {
 
         while (true) {
             StringBuilder codeBlock = new StringBuilder();
-            System.out.println("\nWelcome to Syntax Analyzer! Input your code below: ");
-            System.out.println("(Type 'done' on a new line to finish and analyze, or 'quit' to exit the program):");
-
+            System.out.println("Enter your block of Java code (type 'done' on a new line to finish and analyze, or 'quit' to exit the program):");
 
             while (true) {
                 String input = scanner.nextLine();
                 if (input.trim().equalsIgnoreCase("done")) {
                     System.out.println("\nAnalyzing the code block...\n");
                     analyzeBlock(codeBlock.toString());
-
-                    System.out.println("\n------------- End of analysis -------------\n");
                     break;
                 }
                 if (input.trim().equalsIgnoreCase("quit")) {
@@ -52,9 +48,8 @@ public class SyntaxAnalyzer {
             return;  // Ignore empty lines
         }
 
-        // Ensure the line ends with a semicolon before processing further
         if (!input.endsWith(";")) {
-            System.out.println("Line " + lineNumber + ": Syntax error: Missing semicolon.");
+            System.out.println("Line " + lineNumber + ": Invalid syntax: Missing semicolon.");
             return;
         }
 
@@ -68,7 +63,6 @@ public class SyntaxAnalyzer {
             tokenizer.wordChars('$', '$');
             tokenizer.quoteChar('"');
             tokenizer.quoteChar('\'');
-
             int token = tokenizer.nextToken();
             if (token == StreamTokenizer.TT_WORD) {
                 String firstWord = tokenizer.sval;
@@ -76,8 +70,6 @@ public class SyntaxAnalyzer {
                     handleVariableDeclaration(tokenizer, firstWord, lineNumber);
                 } else if (firstWord.equalsIgnoreCase("System")) {
                     handlePrintStatement(tokenizer, lineNumber);
-                } else if (firstWord.equals("Scanner")) {
-                    handleScannerDeclaration(tokenizer, lineNumber);
                 } else if (variables.containsKey(firstWord)) {
                     handleVariableUsage(tokenizer, firstWord, lineNumber);
                 } else {
@@ -90,7 +82,6 @@ public class SyntaxAnalyzer {
             System.out.println("Line " + lineNumber + ": Error: " + e.getMessage());
         }
     }
-
 
     private static boolean isPrimitiveType(String word) {
         return word.equals("byte") || word.equals("short") || word.equals("int") || word.equals("long") ||
@@ -127,14 +118,8 @@ public class SyntaxAnalyzer {
                 tokenizer.nextToken();
                 Object value = parseValue(tokenizer, varType);
                 if (value != null) {
-                    // Ensure that the line ends with a semicolon
-                    token = tokenizer.nextToken();
-                    if (token == ';') {
-                        variables.put(varName, value);
-                        System.out.println("Line " + lineNumber + ": Syntax is Valid, " + varType + " " + varName + " = " + value);
-                    } else {
-                        System.out.println("Line " + lineNumber + ": Syntax error: Expected ';' after variable declaration.");
-                    }
+                    variables.put(varName, value);
+                    System.out.println("Line " + lineNumber + ": Syntax is Valid, " + varType + " " + varName + " = " + value);
                 } else {
                     System.out.println("Line " + lineNumber + ": Invalid value for " + varType + " " + varName);
                 }
@@ -146,17 +131,18 @@ public class SyntaxAnalyzer {
         }
     }
 
-
     private static Object parseValue(StreamTokenizer tokenizer, String varType) throws IOException {
         switch (varType) {
             case "byte":
             case "short":
             case "int":
-            case "long":
-                if (tokenizer.ttype == StreamTokenizer.TT_NUMBER) {
+                if (tokenizer.ttype == StreamTokenizer.TT_NUMBER && tokenizer.nval == (int) tokenizer.nval) {
                     return (int) tokenizer.nval;
+                } else {
+                    System.out.println("Invalid value for int or related types.");
+                    return null;
                 }
-                break;
+            case "long":
             case "float":
             case "double":
                 if (tokenizer.ttype == StreamTokenizer.TT_NUMBER) {
@@ -171,15 +157,19 @@ public class SyntaxAnalyzer {
                 }
                 break;
             case "char":
-                if (tokenizer.ttype == '\'') {
+                if (tokenizer.ttype == '\'' && tokenizer.sval.length() == 1) {
                     return tokenizer.sval.charAt(0);
+                } else {
+                    System.out.println("Invalid char value.");
+                    return null;
                 }
-                break;
             case "String":
                 if (tokenizer.ttype == '"') {
                     return tokenizer.sval;
+                } else {
+                    System.out.println("Invalid String value: Missing double quotes.");
+                    return null;
                 }
-                break;
         }
         return null;
     }
@@ -228,21 +218,32 @@ public class SyntaxAnalyzer {
             switch (token) {
                 case '"':
                     insideString = !insideString;
-                    expression.append('"').append(tokenizer.sval).append('"');
+                    if (!insideString) {
+                        expression.append('"');
+                    } else {
+                        expression.append('"').append(tokenizer.sval).append('"');
+                    }
                     break;
                 case '\'':
-                    expression.append('\'').append(tokenizer.sval).append('\'');
+                    // Check for valid character literal (single character within single quotes)
+                    if (tokenizer.sval.length() == 1) {
+                        expression.append('\'').append(tokenizer.sval).append('\'');
+                    } else {
+                        System.out.println("Line " + lineNumber + ": Invalid char literal: Char literals can only be one character.");
+                        return;
+                    }
                     break;
                 case StreamTokenizer.TT_NUMBER:
                     expression.append(tokenizer.nval);
                     break;
                 case StreamTokenizer.TT_WORD:
-                    if (tokenizer.sval.equals("true") || tokenizer.sval.equals("false")) {
+                    if (tokenizer.sval.equals("true") || tokenizer.sval.equals("false") || tokenizer.sval.equals("null")) {
                         expression.append(tokenizer.sval);
                     } else if (variables.containsKey(tokenizer.sval)) {
                         expression.append(variables.get(tokenizer.sval));
                     } else {
-                        expression.append(tokenizer.sval);
+                        System.out.println("Line " + lineNumber + ": Invalid variable or undeclared identifier: " + tokenizer.sval);
+                        return;
                     }
                     break;
                 case '(':
@@ -252,15 +253,9 @@ public class SyntaxAnalyzer {
                 case ')':
                     parenCount--;
                     if (parenCount == 0) {
-                        token = tokenizer.nextToken();
-                        if (token == ';') {
-                            String result = evaluateExpression(expression.toString());
-                            System.out.println("Line " + lineNumber + ": Syntax is Valid, System." + outputStream + "." + printType + " statement, Output: " + result);
-                            return;
-                        } else {
-                            System.out.println("Line " + lineNumber + ": Syntax error: Expected ';' after print statement.");
-                            return;
-                        }
+                        String result = evaluateExpression(expression.toString());
+                        System.out.println("Line " + lineNumber + ": Syntax is Valid, System." + outputStream + "." + printType + " statement, Output: " + result);
+                        return;
                     }
                     expression.append(')');
                     break;
@@ -270,44 +265,27 @@ public class SyntaxAnalyzer {
             }
         }
 
-        System.out.println("Line " + lineNumber + ": Invalid print statement: Unmatched parentheses");
+        if (parenCount != 0) {
+            System.out.println("Line " + lineNumber + ": Invalid print statement: Unmatched parentheses");
+        }
     }
-
 
     private static String evaluateExpression(String expression) {
-        try {
-            // Try to evaluate the expression as a mathematical operation first
-            double result = evaluateMathExpression(expression);
-            // Check if the result is a whole number or not
-            if (result == (int) result) {
-                return String.valueOf((int) result);
-            } else {
-                return String.valueOf(result);
-            }
-        } catch (Exception e) {
-            // If not a math expression, fall back to string concatenation handling
-            if (expression.contains("+")) {
-                String[] parts = expression.split("\\+");
-                StringBuilder result = new StringBuilder();
-                for (String part : parts) {
-                    part = part.trim();
-                    if (part.startsWith("\"") && part.endsWith("\"")) {
-                        result.append(part.substring(1, part.length() - 1));
-                    } else if (variables.containsKey(part)) {
-                        result.append(variables.get(part));
-                    } else {
-                        result.append(part);
-                    }
+        // Handle string concatenation
+        if (expression.contains("+") && expression.contains("\"")) {
+            String[] parts = expression.split("\\+");
+            StringBuilder result = new StringBuilder();
+            for (String part : parts) {
+                part = part.trim();
+                if (part.startsWith("\"") && part.endsWith("\"")) {
+                    result.append(part.substring(1, part.length() - 1));
+                } else {
+                    result.append(evaluateExpression(part));
                 }
-                return result.toString();
             }
+            return result.toString();
         }
-        return expression;
-    }
 
-
-    //lowkey I think we can remove this method na but I dont want to sira
-    private static String evaluateSimpleExpression(String expression) {
         // Handle boolean values
         if (expression.equals("true") || expression.equals("false")) {
             return expression;
@@ -318,12 +296,7 @@ public class SyntaxAnalyzer {
             return expression.substring(1, 2);
         }
 
-        // Handle variables
-        if (variables.containsKey(expression)) {
-            return String.valueOf(variables.get(expression));
-        }
-
-        // If it's not a boolean, character, or variable, try to evaluate as a math expression
+        // If it's not a boolean or character, try to evaluate as a math expression
         try {
             double result = evaluateMathExpression(expression);
             if (result == (int) result) {

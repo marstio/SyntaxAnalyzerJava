@@ -49,9 +49,24 @@ public class SyntaxAnalyzer {
     }
 
     private static void analyzeLine(String input, int lineNumber) {
-        if (input.isEmpty() || input.startsWith("//")) {
-            System.out.println(input);
-            return;  // Ignore empty lines
+        // Ignore empty lines
+        if (input.isEmpty()) {
+            return;
+        }
+
+        // Print comments and return immediately to avoid skipping the next line
+        if (input.startsWith("//")) {
+            System.out.println(input);  // Output the comment line
+            return;  // Do not analyze comments further
+        }
+
+        // Output any comments found in the line
+        int commentIndex = input.indexOf("//");
+        if (commentIndex != -1) {
+            // Print the comment part
+            String comment = input.substring(commentIndex);
+            System.out.println(comment.trim());  // Print the comment
+            input = input.substring(0, commentIndex).trim(); // Keep the part before the comment for analysis
         }
 
         // Check for unclosed parentheses

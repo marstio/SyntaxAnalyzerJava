@@ -54,6 +54,22 @@ public class SyntaxAnalyzer {
             return;  // Ignore empty lines
         }
 
+        // Check for unclosed parentheses
+        int openParentheses = 0;
+        for (char ch : input.toCharArray()) {
+            if (ch == '(') {
+                openParentheses++;
+            } else if (ch == ')') {
+                openParentheses--;
+            }
+        }
+
+        // Report if there are unclosed parentheses
+        if (openParentheses > 0) {
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Unclosed parenthesis.");
+            return; // Exit after reporting the error
+        }
+
         if (input.contains("Scanner")) {
             handleScannerDeclaration(input, lineNumber);
             return;
@@ -94,6 +110,7 @@ public class SyntaxAnalyzer {
         }
     }
 
+
     private static boolean isPrimitiveType(String word) {
         return word.equals("byte") || word.equals("short") || word.equals("int") || word.equals("long") ||
                 word.equals("float") || word.equals("double") || word.equals("char") || word.equals("boolean");
@@ -120,7 +137,7 @@ public class SyntaxAnalyzer {
         if (token == StreamTokenizer.TT_WORD) {
             String varName = tokenizer.sval;
             if (!isValidVariableName(varName)) {
-                System.out.println("Line " + lineNumber + ": Invalid variable name: " + varName);
+                System.out.println("Line " + lineNumber + ": Invalid Syntax: invalid variable name: " + varName);
                 return;
             }
 
@@ -225,7 +242,7 @@ public class SyntaxAnalyzer {
         token = tokenizer.nextToken();
         if (token != StreamTokenizer.TT_WORD ||
                 (!tokenizer.sval.equals("print") && !tokenizer.sval.equals("println") && !tokenizer.sval.equals("printf"))) {
-            System.out.println("Line " + lineNumber + ": Invalid print statement: " + tokenizer.sval);
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: print statement: " + tokenizer.sval);
             return;
         }
 

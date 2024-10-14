@@ -42,9 +42,17 @@ public class SyntaxAnalyzer {
 
     private static void analyzeBlock(String codeBlock) {
         String[] lines = codeBlock.split("\\n");
+        int actualLineNumber = 1; // Start line numbering from 1
 
-        for (int i = 0; i < lines.length; i++) {
-            analyzeLine(lines[i].trim(), i + 1);
+        for (String line : lines) {
+            String trimmedLine = line.trim();
+            // Analyze the line, passing the actual line number
+            analyzeLine(trimmedLine, actualLineNumber);
+
+            // Increment the actual line number only if it's not a comment
+            if (!trimmedLine.startsWith("//") && !trimmedLine.isEmpty()) {
+                actualLineNumber++; // Increment only for actual code lines
+            }
         }
     }
 
@@ -54,10 +62,10 @@ public class SyntaxAnalyzer {
             return;
         }
 
-        // Print comments and return immediately to avoid skipping the next line
+        // Check for comments at the start
         if (input.startsWith("//")) {
-            System.out.println(input);  // Output the comment line
-            return;  // Do not analyze comments further
+            System.out.println(input); // Print the entire comment line
+            return; // Return immediately after printing the comment
         }
 
         // Output any comments found in the line
@@ -65,8 +73,13 @@ public class SyntaxAnalyzer {
         if (commentIndex != -1) {
             // Print the comment part
             String comment = input.substring(commentIndex);
-            System.out.println(comment.trim());  // Print the comment
+            System.out.println(comment.trim()); // Print the comment
             input = input.substring(0, commentIndex).trim(); // Keep the part before the comment for analysis
+        }
+
+        // If there's no code left after the comment, return early
+        if (input.isEmpty()) {
+            return;
         }
 
         // Check for unclosed parentheses
@@ -85,11 +98,13 @@ public class SyntaxAnalyzer {
             return; // Exit after reporting the error
         }
 
+        // Handle Scanner declarations
         if (input.contains("Scanner")) {
             handleScannerDeclaration(input, lineNumber);
             return;
         }
 
+        // Check for missing semicolon or double semicolon
         if (!input.endsWith(";") || input.endsWith(";;")) {
             System.out.println("Line " + lineNumber + ": Invalid Syntax: Missing semicolon or there's something after the semicolon");
             return;
@@ -106,6 +121,8 @@ public class SyntaxAnalyzer {
             tokenizer.quoteChar('"');
             tokenizer.quoteChar('\'');
             int token = tokenizer.nextToken();
+
+            // Analyze tokens
             if (token == StreamTokenizer.TT_WORD) {
                 String firstWord = tokenizer.sval;
                 if (isPrimitiveType(firstWord) || firstWord.equals("String")) {
@@ -124,6 +141,9 @@ public class SyntaxAnalyzer {
             System.out.println("Line " + lineNumber + ": Error: " + e.getMessage());
         }
     }
+
+
+
 
 
     private static boolean isPrimitiveType(String word) {

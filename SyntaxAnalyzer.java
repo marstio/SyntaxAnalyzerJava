@@ -52,6 +52,12 @@ public class SyntaxAnalyzer {
             return;  // Ignore empty lines
         }
 
+        // Ensure the line ends with a semicolon before processing further
+        if (!input.endsWith(";")) {
+            System.out.println("Line " + lineNumber + ": Syntax error: Missing semicolon.");
+            return;
+        }
+
         try {
             StringReader reader = new StringReader(input);
             StreamTokenizer tokenizer = new StreamTokenizer(reader);
@@ -84,6 +90,7 @@ public class SyntaxAnalyzer {
             System.out.println("Line " + lineNumber + ": Error: " + e.getMessage());
         }
     }
+
 
     private static boolean isPrimitiveType(String word) {
         return word.equals("byte") || word.equals("short") || word.equals("int") || word.equals("long") ||
@@ -120,8 +127,14 @@ public class SyntaxAnalyzer {
                 tokenizer.nextToken();
                 Object value = parseValue(tokenizer, varType);
                 if (value != null) {
-                    variables.put(varName, value);
-                    System.out.println("Line " + lineNumber + ": Syntax is Valid, " + varType + " " + varName + " = " + value);
+                    // Ensure that the line ends with a semicolon
+                    token = tokenizer.nextToken();
+                    if (token == ';') {
+                        variables.put(varName, value);
+                        System.out.println("Line " + lineNumber + ": Syntax is Valid, " + varType + " " + varName + " = " + value);
+                    } else {
+                        System.out.println("Line " + lineNumber + ": Syntax error: Expected ';' after variable declaration.");
+                    }
                 } else {
                     System.out.println("Line " + lineNumber + ": Invalid value for " + varType + " " + varName);
                 }
@@ -132,6 +145,7 @@ public class SyntaxAnalyzer {
             System.out.println("Line " + lineNumber + ": Syntax error: Expected variable name.");
         }
     }
+
 
     private static Object parseValue(StreamTokenizer tokenizer, String varType) throws IOException {
         switch (varType) {
@@ -238,9 +252,15 @@ public class SyntaxAnalyzer {
                 case ')':
                     parenCount--;
                     if (parenCount == 0) {
-                        String result = evaluateExpression(expression.toString());
-                        System.out.println("Line " + lineNumber + ": Syntax is Valid, System." + outputStream + "." + printType + " statement, Output: " + result);
-                        return;
+                        token = tokenizer.nextToken();
+                        if (token == ';') {
+                            String result = evaluateExpression(expression.toString());
+                            System.out.println("Line " + lineNumber + ": Syntax is Valid, System." + outputStream + "." + printType + " statement, Output: " + result);
+                            return;
+                        } else {
+                            System.out.println("Line " + lineNumber + ": Syntax error: Expected ';' after print statement.");
+                            return;
+                        }
                     }
                     expression.append(')');
                     break;
@@ -252,6 +272,7 @@ public class SyntaxAnalyzer {
 
         System.out.println("Line " + lineNumber + ": Invalid print statement: Unmatched parentheses");
     }
+
 
     private static String evaluateExpression(String expression) {
         try {

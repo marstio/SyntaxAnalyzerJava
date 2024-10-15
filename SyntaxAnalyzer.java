@@ -46,10 +46,10 @@ public class SyntaxAnalyzer {
 
         for (String line : lines) {
             String trimmedLine = line.trim();
-            // Analyze the line, passing the actual line number
+            // Analyze the line, passing the current line number
             analyzeLine(trimmedLine, actualLineNumber);
 
-            // Increment the actual line number only if it's not a comment
+            // Increment the line number if it's not a comment
             if (!trimmedLine.startsWith("//") && !trimmedLine.isEmpty()) {
                 actualLineNumber++; // Increment only for actual code lines
             }
@@ -57,15 +57,15 @@ public class SyntaxAnalyzer {
     }
 
     private static void analyzeLine(String input, int lineNumber) {
-        // Ignore empty lines
+        // Ignores the empty lines
         if (input.isEmpty()) {
             return;
         }
 
-        // Check for comments at the start
+        // Check for comments at the start of a line
         if (input.startsWith("//")) {
-            System.out.println(input); // Print the entire comment line
-            return; // Return immediately after printing the comment
+            System.out.println(input);
+            return;
         }
 
         // Output any comments found in the line
@@ -77,7 +77,7 @@ public class SyntaxAnalyzer {
             input = input.substring(0, commentIndex).trim(); // Keep the part before the comment for analysis
         }
 
-        // If there's no code left after the comment, return early
+        // If there's no code left after the comment, ignores again
         if (input.isEmpty()) {
             return;
         }
@@ -92,17 +92,12 @@ public class SyntaxAnalyzer {
             }
         }
 
-        // Report if there are unclosed parentheses
+        // Reports if there are unclosed parentheses
         if (openParentheses > 0) {
             System.out.println("Line " + lineNumber + ": Invalid Syntax: Unclosed parenthesis.");
             return; // Exit after reporting the error
         }
 
-        // Handle Scanner declarations
-        if (input.contains("Scanner")) {
-            handleScannerDeclaration(input, lineNumber);
-            return;
-        }
 
         // Check for missing semicolon or double semicolon
         if (!input.endsWith(";") || input.endsWith(";;")) {
@@ -131,6 +126,8 @@ public class SyntaxAnalyzer {
                     handlePrintStatement(tokenizer, lineNumber);
                 } else if (variables.containsKey(firstWord)) {
                     handleVariableUsage(tokenizer, firstWord, lineNumber);
+                } else if (firstWord.equalsIgnoreCase("Scanner")) {
+                    handleScannerDeclaration(tokenizer, lineNumber);
                 } else {
                     System.out.println("Line " + lineNumber + ": Invalid Syntax: undeclared variable: " + firstWord);
                 }
@@ -285,7 +282,7 @@ public class SyntaxAnalyzer {
 
         token = tokenizer.nextToken();
         if (token != '(') {
-            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected '(' after '" + printType + "'");
+            System.out.println("Line " + lineNumber + ": Invalid Syntax: Expected '(' before '" + printType + "'");
             return;
         }
 
@@ -467,30 +464,27 @@ public class SyntaxAnalyzer {
         }.parse();
     }
 
-    private static void handleScannerDeclaration(String line, int lineNumber) {
-        // Check for valid Scanner declaration
-        if (line.trim().equals("Scanner scan = new Scanner(System.in);")) {
-            System.out.println("Line " + lineNumber + ": Syntax is Valid");
+    private static void handleScannerDeclaration(StreamTokenizer tokenizer, int lineNumber) throws IOException {
+        tokenizer.nextToken(); // variable name
+        String varName = tokenizer.sval;
+        if (!isValidVariableName(varName)) {
+            System.out.println("Line " + lineNumber + ": Invalid Scanner variable name: " + varName);
+            return;
         }
-        // Check for invalid syntax - missing "in"
-        else if (!(line.contains("(System.in)"))) {
-            System.out.println("Line " + lineNumber + ": Invalid Syntax: needs (System.in)");
-        }
-        // Check for invalid scanner declaration - variable name issue
-        else if (line.startsWith("Scan ") || line.startsWith("scan ")) {
-            System.out.println("Line " + lineNumber + ": Invalid Syntax: Scanner not properly declared");
-        }
-        // Check for extra characters after the semicolon
-        else if (!(line.endsWith(";"))) {
-            System.out.println("Line " + lineNumber + ": Invalid Syntax: there's something after the semicolon");
-        }
-        // Check for missing "new" in scanner declaration
-        else if (line.contains("Scanner") && !line.contains("new Scanner")) {
-            System.out.println("Line " + lineNumber + ": Invalid Syntax: need to declare new scanner object");
-        }
-        // Handle any other cases if needed
-        else {
-            System.out.println("Line " + lineNumber + ": Invalid Syntax: Unrecognized Scanner declaration");
+        tokenizer.nextToken(); // =
+        tokenizer.nextToken(); // new
+        tokenizer.nextToken(); // Scanner
+        tokenizer.nextToken(); // (
+        tokenizer.nextToken(); // System
+        tokenizer.nextToken(); // .
+        tokenizer.nextToken(); // in
+        tokenizer.nextToken(); // )
+        tokenizer.nextToken(); // ;
+
+        if (tokenizer.ttype == ';') {
+            System.out.println("Line " + lineNumber + ": Syntax is Valid, Scanner declared - " + varName);
+        } else {
+            System.out.println("Line " + lineNumber + ": Invalid Scanner declaration");
         }
     }
 
